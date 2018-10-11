@@ -1,34 +1,51 @@
-FROM nginx:1.14-alpine
-LABEL maintainer="Jason Wilder mail@jasonwilder.com"
+FROM golang:1.10-alpine AS go-builder
 
-# Install wget and install/updates certificates
-RUN apk add --no-cache --virtual .run-deps \
-    ca-certificates bash wget openssl \
-    && update-ca-certificates
+ENV DOCKER_GEN_VERSION=0.7.4
 
+# Install build dependencies for docker-gen
+RUN apk add --update \
+        curl \
+        gcc \
+        git \
+        make \
+        musl-dev
 
-# Configure Nginx and apply fix for very long server names
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf \
- && sed -i 's/worker_processes  1/worker_processes  auto/' /etc/nginx/nginx.conf
+# Build docker-gen
+RUN go get github.com/jwilder/docker-gen \
+    && cd /go/src/github.com/jwilder/docker-gen \
+    && git checkout $DOCKER_GEN_VERSION \
+    && make get-deps \
+    && make all
 
-# Install Forego
-ADD https://github.com/jwilder/forego/releases/download/v0.16.1/forego /usr/local/bin/forego
-RUN chmod u+x /usr/local/bin/forego
+FROM alpine:3.8
 
-ENV DOCKER_GEN_VERSION 0.7.4
+LABEL maintainer="Yves Blusseau <90z7oey02@sneakemail.com> (@blusseau)"
 
-RUN wget --quiet https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz \
- && tar -C /usr/local/bin -xvzf docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz \
- && rm /docker-gen-alpine-linux-amd64-$DOCKER_GEN_VERSION.tar.gz
+ENV DEBUG=false \
+    DOCKER_HOST=unix:///var/run/docker.sock
 
-COPY network_internal.conf /etc/nginx/
+# Install packages required by the image
+RUN apk add --update \
+        bash \
+        ca-certificates \
+        curl \
+        jq \
+        openssl \
+    && rm /var/cache/apk/*
 
-COPY . /app/
-WORKDIR /app/
+# Install docker-gen from build stage
+COPY --from=go-builder /go/src/github.com/jwilder/docker-gen/docker-gen /usr/local/bin/
 
-ENV DOCKER_HOST unix:///tmp/docker.sock
+# Install simp_le
+COPY /install_simp_le.sh /app/install_simp_le.sh
+RUN chmod +rx /app/install_simp_le.sh \
+    && sync \
+    && /app/install_simp_le.sh \
+    && rm -f /app/install_simp_le.sh
 
-VOLUME ["/etc/nginx/certs", "/etc/nginx/dhparam"]
+COPY /app/ /app/
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["forego", "start", "-r"]
+WORKDIR /app
+
+ENTRYPOINT [ "/bin/bash", "/app/entrypoint.sh" ]
+CMD [ "/bin/bash", "/app/start.sh" ]
