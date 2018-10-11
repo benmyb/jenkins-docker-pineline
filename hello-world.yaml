@@ -18,6 +18,7 @@ kind: Deployment
 metadata:
   name: hello-world
 spec:
+  restartPolicy: Never
   template:
     metadata:
       labels:
