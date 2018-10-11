@@ -24,7 +24,7 @@ spec:
         app: hello-world
     spec:
       containers:
-      - image: 724258426085.dkr.ecr.us-east-1.amazonaws.com/k8s/jenkins-test:${BUILD_ID}
+      - image: 724258426085.dkr.ecr.us-east-1.amazonaws.com/k8s/jenkins-test:${build_tag}
         name: hello-world
         ports:
         - containerPort: 80
