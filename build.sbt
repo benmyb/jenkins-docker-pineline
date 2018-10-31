@@ -1,22 +1,12 @@
-name := """scalaIO"""
+name := "sbt-example"
+organization := "org.scalamacros"
+version := "2.0.0"
 
-version := "1.0-SNAPSHOT"
+scalaVersion in ThisBuild := "2.11.12"
+run <<= run in Compile in core
 
-scalaVersion := "2.11.12"
-
-libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play-ahc-ws-standalone" % "2.0.0-M3",
-  "com.typesafe.play" %% "play-json" % "2.6.10",
-  "com.softwaremill.sttp" %% "core" % "1.3.2",
-  "com.softwaremill.sttp" %% "async-http-client-backend-monix" % "1.3.5",
-  "com.softwaremill.sttp" %% "async-http-client-backend-fs2" % "1.3.5",
-  "com.softwaremill.sttp" %% "async-http-client-backend-fs2" % "1.3.5"
+lazy val macros = (project in file("macros")).settings(
+ libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
 )
 
-val circeVersion = "0.10.0"
-libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser",
-  "io.circe" %% "circe-fs2"
-).map(_ % circeVersion)
+lazy val core = (project in file("core")) dependsOn macros
